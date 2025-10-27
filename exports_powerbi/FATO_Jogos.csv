@@ -1,0 +1,9 @@
+﻿jogo_id,times_jogados,data,publico_total,setor_mais_visitado,horario,receita_ingresso,receita_produtos_internos,total_arrecadado,classificacao_para_competicao,ticket_medio_ingresso,Vermelho,amarelo,roxo,laranja,receita_per_capita,percentual_receita_produtos,mes,ano,dia_semana,trimestre,tipo_adversario,eh_classico
+JOGO_1,Cruzeiro e Tombense,,16.0, Amarelo,20:00h,550000.0,150000.0,700000.0,não,34375.0,25,60,10,5,43750.0,21.43,,,,,Médio/Pequeno,False
+JOGO_2,Cruzeiro e Ceará,,52.0, Vermelho,16:00h,2200000.0,750000.0,2950000.0,sim - copa do brasil,42307.69,40,40,15,5,56730.77,25.42,,,,,Médio/Pequeno,False
+JOGO_3,Cruzeiro e CRB,2025-06-30,33.0, Amarelo,19:30h,1200000.0,400000.0,1600000.0,sim - copa do brasil,36363.64,30,55,10,5,48484.85,25.0,6.0,2025.0,Monday,2.0,Médio/Pequeno,False
+JOGO_4,Cruzeiro vs Flamengo,2025-05-04,48.0,amarelo,18:30h,2550000.0,800000.0,3350000.0,sim - brasileiro serie a,53125.0,18,68,14,0,69791.67,23.88,5.0,2025.0,Sunday,2.0,Grande,False
+JOGO_5,Cruzeiro vs Flamengo,2025-08-11,56.0,amarelo,19:30h,2900000.0,1000000.0,3900000.0,sim - copa do brasil,51785.71,23,35,19,23,69642.86,25.64,8.0,2025.0,Monday,3.0,Grande,False
+JOGO_6,Cruzeiro vs São Paulo,2024-09-22,42.0,roxo,16:00h,1800000.0,600000.0,2400000.0,sim - brasileiro serie a,42857.14,37,29,15,19,57142.86,25.0,9.0,2024.0,Sunday,3.0,Grande,False
+JOGO_7,Cruzeiro vs Palmeiras,2024-10-05,38.0,vermelho,21:30h,2100000.0,850000.0,2950000.0,sim - qualificatória da copa libertadores,55263.16,45,30,15,10,77631.58,28.81,10.0,2024.0,Saturday,4.0,Grande,False
+JOGO_8,Cruzeiro vs Atlético-MG,2024-11-10,58.0,amarelo,19:00h,3100000.0,1100000.0,4200000.0,sim - brasileiro serie a,53448.28,20,55,15,10,72413.79,26.19,11.0,2024.0,Sunday,4.0,Grande,True

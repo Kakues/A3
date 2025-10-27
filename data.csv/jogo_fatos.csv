@@ -1,4 +1,4 @@
-times jogados, horário,data, publico total, setor mais visitado, jogo id
+times_jogados, horário,data, publico_total, setor_mais_visitado, jogo_id
 Cruzeiro e Tombense,20:00h,19/01/2025 , 16.492, Amarelo,JOGO_1 
 Cruzeiro e Ceará,16:00h,27/06/2025 ,52.802, Vermelho, JOGO_2
 Cruzeiro e CRB,19:30h,30/06/2025,  33.068 , Amarelo, JOGO_3
