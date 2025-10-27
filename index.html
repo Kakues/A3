@@ -173,6 +173,24 @@
             border-radius: 4px;
             font-size: 14px;
             background: white;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .filter-group select:hover {
+            border-color: #003366;
+        }
+        
+        .filter-group select:focus {
+            outline: none;
+            border-color: #003366;
+            box-shadow: 0 0 0 3px rgba(0, 51, 102, 0.1);
+        }
+        
+        .filter-active {
+            background: #e3f2fd !important;
+            border-color: #003366 !important;
+            font-weight: 600;
         }
         
         table {
@@ -253,36 +271,41 @@
             <div class="filters">
                 <div class="filter-group">
                     <label>Ano</label>
-                    <select>
-                        <option>Todos</option>
-                        <option>2025</option>
-                        <option>2024</option>
+                    <select id="filterAno" onchange="applyFilters()">
+                        <option value="todos">Todos</option>
+                        <option value="2025">2025</option>
+                        <option value="2024">2024</option>
                     </select>
                 </div>
                 <div class="filter-group">
                     <label>Tipo de Adversário</label>
-                    <select>
-                        <option>Todos</option>
-                        <option>Grande</option>
-                        <option>Médio/Pequeno</option>
+                    <select id="filterAdversario" onchange="applyFilters()">
+                        <option value="todos">Todos</option>
+                        <option value="grande">Grande</option>
+                        <option value="medio">Médio/Pequeno</option>
                     </select>
                 </div>
                 <div class="filter-group">
                     <label>Competição</label>
-                    <select>
-                        <option>Todas</option>
-                        <option>Brasileiro Série A</option>
-                        <option>Copa do Brasil</option>
-                        <option>Copa Libertadores</option>
+                    <select id="filterCompeticao" onchange="applyFilters()">
+                        <option value="todos">Todas</option>
+                        <option value="brasileiro">Brasileiro Série A</option>
+                        <option value="copa_brasil">Copa do Brasil</option>
+                        <option value="libertadores">Copa Libertadores</option>
                     </select>
                 </div>
                 <div class="filter-group">
                     <label>Clássico</label>
-                    <select>
-                        <option>Todos</option>
-                        <option>Sim</option>
-                        <option>Não</option>
+                    <select id="filterClassico" onchange="applyFilters()">
+                        <option value="todos">Todos</option>
+                        <option value="sim">Sim</option>
+                        <option value="nao">Não</option>
                     </select>
+                </div>
+                <div class="filter-group" style="align-self: flex-end;">
+                    <button onclick="resetFilters()" style="padding: 8px 20px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">
+                        🔄 Limpar Filtros
+                    </button>
                 </div>
             </div>
             
@@ -510,6 +533,147 @@
     </div>
 
     <script>
+        // Dados completos dos jogos
+        const dadosJogos = [
+            { id: 1, jogo: 'Cruzeiro e Tombense', data: '2025-01-19', ano: 2025, publico: 16492, receita: 700, adversario: 'medio', competicao: 'brasileiro', classico: false },
+            { id: 2, jogo: 'Cruzeiro e Ceará', data: '2025-06-27', ano: 2025, publico: 52802, receita: 2950, adversario: 'medio', competicao: 'copa_brasil', classico: false },
+            { id: 3, jogo: 'Cruzeiro e CRB', data: '2025-06-30', ano: 2025, publico: 33068, receita: 1600, adversario: 'medio', competicao: 'copa_brasil', classico: false },
+            { id: 4, jogo: 'Cruzeiro vs Flamengo', data: '2025-05-04', ano: 2025, publico: 48862, receita: 3350, adversario: 'grande', competicao: 'brasileiro', classico: false },
+            { id: 5, jogo: 'Cruzeiro vs Flamengo', data: '2025-08-11', ano: 2025, publico: 56579, receita: 3900, adversario: 'grande', competicao: 'copa_brasil', classico: false },
+            { id: 6, jogo: 'Cruzeiro vs São Paulo', data: '2024-09-22', ano: 2024, publico: 42150, receita: 2400, adversario: 'grande', competicao: 'brasileiro', classico: false },
+            { id: 7, jogo: 'Cruzeiro vs Palmeiras', data: '2024-10-05', ano: 2024, publico: 38990, receita: 2950, adversario: 'grande', competicao: 'libertadores', classico: false },
+            { id: 8, jogo: 'Cruzeiro vs Atlético-MG', data: '2024-11-10', ano: 2024, publico: 58000, receita: 4200, adversario: 'grande', competicao: 'brasileiro', classico: true }
+        ];
+        
+        let dadosFiltrados = [...dadosJogos];
+        let charts = {};
+        
+        // Função para aplicar filtros
+        function applyFilters() {
+            const ano = document.getElementById('filterAno').value;
+            const adversario = document.getElementById('filterAdversario').value;
+            const competicao = document.getElementById('filterCompeticao').value;
+            const classico = document.getElementById('filterClassico').value;
+            
+            // Aplicar visual de filtro ativo
+            document.querySelectorAll('.filters select').forEach(select => {
+                if (select.value !== 'todos') {
+                    select.classList.add('filter-active');
+                } else {
+                    select.classList.remove('filter-active');
+                }
+            });
+            
+            dadosFiltrados = dadosJogos.filter(jogo => {
+                let pass = true;
+                
+                if (ano !== 'todos') {
+                    pass = pass && jogo.ano === parseInt(ano);
+                }
+                
+                if (adversario !== 'todos') {
+                    pass = pass && jogo.adversario === adversario;
+                }
+                
+                if (competicao !== 'todos') {
+                    pass = pass && jogo.competicao === competicao;
+                }
+                
+                if (classico !== 'todos') {
+                    pass = pass && jogo.classico === (classico === 'sim');
+                }
+                
+                return pass;
+            });
+            
+            // Atualizar KPIs e gráficos
+            updateDashboard();
+        }
+        
+        // Função para resetar filtros
+        function resetFilters() {
+            document.getElementById('filterAno').value = 'todos';
+            document.getElementById('filterAdversario').value = 'todos';
+            document.getElementById('filterCompeticao').value = 'todos';
+            document.getElementById('filterClassico').value = 'todos';
+            
+            document.querySelectorAll('.filters select').forEach(select => {
+                select.classList.remove('filter-active');
+            });
+            
+            dadosFiltrados = [...dadosJogos];
+            updateDashboard();
+        }
+        
+        // Função para atualizar dashboard
+        function updateDashboard() {
+            // Calcular KPIs
+            const totalReceita = dadosFiltrados.reduce((sum, j) => sum + j.receita, 0);
+            const totalPublico = dadosFiltrados.reduce((sum, j) => sum + j.publico, 0);
+            const ticketMedio = totalReceita * 1000 / totalPublico;
+            const taxaOcupacao = (totalPublico / (dadosFiltrados.length * 61927) * 100).toFixed(1);
+            
+            // Atualizar cards
+            document.querySelector('.kpi-card:nth-child(1) .kpi-value').textContent = 
+                `R$ ${(totalReceita / 1000).toFixed(2)}M`;
+            document.querySelector('.kpi-card:nth-child(2) .kpi-value').textContent = 
+                totalPublico.toLocaleString('pt-BR');
+            document.querySelector('.kpi-card:nth-child(3) .kpi-value').textContent = 
+                `R$ ${ticketMedio.toFixed(2)}`;
+            document.querySelector('.kpi-card:nth-child(4) .kpi-value').textContent = 
+                `${taxaOcupacao}%`;
+            
+            // Atualizar gráficos
+            updateCharts();
+        }
+        
+        // Função para atualizar gráficos
+        function updateCharts() {
+            // Dados para gráfico de evolução
+            const labels = dadosFiltrados.map(j => j.jogo.substring(0, 20));
+            const receitas = dadosFiltrados.map(j => j.receita);
+            const publicos = dadosFiltrados.map(j => j.publico / 1000);
+            
+            // Atualizar gráfico de jogos
+            if (charts.gamesChart) {
+                charts.gamesChart.data.labels = labels;
+                charts.gamesChart.data.datasets[0].data = receitas;
+                charts.gamesChart.update();
+            }
+            
+            // Atualizar gráfico de evolução
+            if (charts.evolutionChart) {
+                const meses = [...new Set(dadosFiltrados.map(j => j.data.substring(0, 7)))].sort();
+                const receitaPorMes = meses.map(mes => {
+                    return dadosFiltrados
+                        .filter(j => j.data.startsWith(mes))
+                        .reduce((sum, j) => sum + j.receita, 0);
+                });
+                const publicoPorMes = meses.map(mes => {
+                    return dadosFiltrados
+                        .filter(j => j.data.startsWith(mes))
+                        .reduce((sum, j) => sum + j.publico, 0) / 1000;
+                });
+                
+                charts.evolutionChart.data.labels = meses.map(m => {
+                    const [ano, mes] = m.split('-');
+                    return `${mes}/${ano.substring(2)}`;
+                });
+                charts.evolutionChart.data.datasets[0].data = receitaPorMes;
+                charts.evolutionChart.data.datasets[1].data = publicoPorMes;
+                charts.evolutionChart.update();
+            }
+            
+            // Atualizar gráfico de dispersão
+            if (charts.scatterChart) {
+                charts.scatterChart.data.datasets[0].data = dadosFiltrados.map(j => ({
+                    x: j.publico,
+                    y: j.receita
+                }));
+                charts.scatterChart.update();
+            }
+        }
+        
         // Função para trocar de página
         function showPage(pageNum) {
             document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -532,20 +696,20 @@
         };
         
         // Gráfico 1: Evolução Temporal
-        new Chart(document.getElementById('evolutionChart'), {
+        charts.evolutionChart = new Chart(document.getElementById('evolutionChart'), {
             type: 'line',
             data: {
-                labels: ['Jan/24', 'Mar/24', 'Mai/24', 'Jul/24', 'Set/24', 'Nov/24', 'Jan/25', 'Mar/25'],
+                labels: ['Jan/25', 'Mai/25', 'Jun/25', 'Ago/25', 'Set/24', 'Out/24', 'Nov/24'],
                 datasets: [{
                     label: 'Receita Total (R$ mil)',
-                    data: [550, 1200, 2550, 1800, 2100, 3100, 2200, 2900],
+                    data: [700, 3350, 4550, 3900, 2400, 2950, 4200],
                     borderColor: cruzeiroPalette.primary,
                     backgroundColor: cruzeiroPalette.primary + '20',
                     tension: 0.4,
                     yAxisID: 'y',
                 }, {
                     label: 'Público (milhares)',
-                    data: [16.5, 33.1, 48.9, 42.2, 39.0, 58.0, 52.8, 56.6],
+                    data: [16.5, 48.9, 85.9, 56.6, 42.2, 39.0, 58.0],
                     borderColor: cruzeiroPalette.accent,
                     backgroundColor: cruzeiroPalette.accent + '20',
                     tension: 0.4,
@@ -704,7 +868,7 @@
         });
         
         // Gráfico 9: Dispersão
-        new Chart(document.getElementById('scatterChart'), {
+        charts.scatterChart = new Chart(document.getElementById('scatterChart'), {
             type: 'scatter',
             data: {
                 datasets: [{
@@ -721,9 +885,32 @@
             },
             options: {
                 responsive: true,
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return `Público: ${context.parsed.x.toLocaleString('pt-BR')} | Receita: R$ ${context.parsed.y.toLocaleString('pt-BR')} mil`;
+                            }
+                        }
+                    }
+                },
                 scales: {
-                    x: { title: { display: true, text: 'Público' } },
-                    y: { title: { display: true, text: 'Receita Total (R$ mil)' } }
+                    x: { 
+                        title: { display: true, text: 'Público' },
+                        ticks: {
+                            callback: function(value) {
+                                return value.toLocaleString('pt-BR');
+                            }
+                        }
+                    },
+                    y: { 
+                        title: { display: true, text: 'Receita Total (R$ mil)' },
+                        ticks: {
+                            callback: function(value) {
+                                return 'R$ ' + value.toLocaleString('pt-BR');
+                            }
+                        }
+                    }
                 }
             }
         });
