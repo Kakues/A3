@@ -99,23 +99,26 @@
         }
         
         .kpi-label {
-            font-size: 14px;
+            font-size: 16px;
             color: #666;
-            margin-bottom: 8px;
+            margin-bottom: 10px;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.8px;
+            font-weight: 600;
         }
         
         .kpi-value {
-            font-size: 32px;
+            font-size: 42px;
             font-weight: bold;
             color: #003366;
+            line-height: 1.2;
         }
         
         .kpi-change {
-            font-size: 12px;
+            font-size: 14px;
             color: #28a745;
-            margin-top: 5px;
+            margin-top: 8px;
+            font-weight: 500;
         }
         
         .chart-grid {
@@ -133,12 +136,20 @@
         }
         
         .chart-title {
-            font-size: 18px;
-            font-weight: 600;
+            font-size: 20px;
+            font-weight: 700;
             color: #333;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 3px solid #003366;
+        }
+        
+        .chart-subtitle {
+            font-size: 14px;
+            color: #666;
+            margin-top: -15px;
             margin-bottom: 15px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid #003366;
+            font-style: italic;
         }
         
         .full-width {
@@ -199,15 +210,17 @@
         }
         
         th, td {
-            padding: 12px;
+            padding: 14px;
             text-align: left;
             border-bottom: 1px solid #ddd;
+            font-size: 15px;
         }
         
         th {
             background: #003366;
             color: white;
-            font-weight: 600;
+            font-weight: 700;
+            font-size: 16px;
         }
         
         tr:hover {
@@ -264,6 +277,7 @@
             <div class="tab" onclick="showPage(2)">🍔 Produtos</div>
             <div class="tab" onclick="showPage(3)">👥 Demográfico</div>
             <div class="tab" onclick="showPage(4)">📈 Correlações</div>
+            <div class="tab" onclick="showPage(5)">💰 Análise Financeira</div>
         </div>
         
         <div class="content">
@@ -275,6 +289,11 @@
                         <option value="todos">Todos</option>
                         <option value="2025">2025</option>
                         <option value="2024">2024</option>
+                        <option value="2023">2023</option>
+                        <option value="2022">2022</option>
+                        <option value="2021">2021</option>
+                        <option value="2020">2020 (Pandemia)</option>
+                        <option value="2019">2019</option>
                     </select>
                 </div>
                 <div class="filter-group">
@@ -292,6 +311,8 @@
                         <option value="brasileiro">Brasileiro Série A</option>
                         <option value="copa_brasil">Copa do Brasil</option>
                         <option value="libertadores">Copa Libertadores</option>
+                        <option value="mineiro">Campeonato Mineiro</option>
+                        <option value="sul_americana">Copa Sul-Americana</option>
                     </select>
                 </div>
                 <div class="filter-group">
@@ -300,6 +321,15 @@
                         <option value="todos">Todos</option>
                         <option value="sim">Sim</option>
                         <option value="nao">Não</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Era</label>
+                    <select id="filterEra" onchange="applyFilters()">
+                        <option value="todos">Todas</option>
+                        <option value="pre">Pré-COVID (2019)</option>
+                        <option value="pandemia">Pandemia (2020-2021)</option>
+                        <option value="pos">Pós-COVID (2022-2025)</option>
                     </select>
                 </div>
                 <div class="filter-group" style="align-self: flex-end;">
@@ -337,11 +367,13 @@
                 <div class="chart-grid">
                     <div class="chart-container">
                         <div class="chart-title">📈 Evolução de Receita e Público</div>
+                        <div class="chart-subtitle">Valores em milhares de reais (R$) e milhares de pessoas</div>
                         <canvas id="evolutionChart"></canvas>
                     </div>
                     
                     <div class="chart-container">
                         <div class="chart-title">🎯 Distribuição por Setores</div>
+                        <div class="chart-subtitle">Percentual de ocupação por setor do estádio</div>
                         <canvas id="sectorsChart"></canvas>
                         <div class="legend">
                             <div class="legend-item">
@@ -366,6 +398,7 @@
                 
                 <div class="chart-container full-width">
                     <div class="chart-title">🏟️ Receita por Jogo</div>
+                    <div class="chart-subtitle">Receita total arrecadada em milhares de reais (R$) por partida</div>
                     <canvas id="gamesChart"></canvas>
                 </div>
             </div>
@@ -398,11 +431,13 @@
                 <div class="chart-grid">
                     <div class="chart-container">
                         <div class="chart-title">🍺 Receita por Tipo de Produto</div>
+                        <div class="chart-subtitle">Receita total em milhares de reais (R$) por categoria de produto</div>
                         <canvas id="productsChart"></canvas>
                     </div>
                     
                     <div class="chart-container">
                         <div class="chart-title">📊 Participação %</div>
+                        <div class="chart-subtitle">Percentual de participação de cada produto na receita total</div>
                         <canvas id="productsPieChart"></canvas>
                     </div>
                 </div>
@@ -458,17 +493,20 @@
                 <div class="chart-grid">
                     <div class="chart-container">
                         <div class="chart-title">👥 Distribuição por Gênero</div>
+                        <div class="chart-subtitle">Percentual de torcedores masculinos e femininos por jogo</div>
                         <canvas id="genderChart"></canvas>
                     </div>
                     
                     <div class="chart-container">
                         <div class="chart-title">📍 Distribuição por Região</div>
+                        <div class="chart-subtitle">Percentual de torcedores por região de origem</div>
                         <canvas id="regionChart"></canvas>
                     </div>
                 </div>
                 
                 <div class="chart-container full-width">
                     <div class="chart-title">🎂 Distribuição por Faixa Etária</div>
+                    <div class="chart-subtitle">Percentual de torcedores por idade</div>
                     <canvas id="ageChart"></canvas>
                 </div>
                 
@@ -478,11 +516,141 @@
                 </div>
             </div>
             
-            <!-- Página 4: Correlações -->
+            <!-- Página 5: Análise Financeira (NOVA) -->
+            <div class="page" id="page5">
+                <div class="kpi-row">
+                    <div class="kpi-card">
+                        <div class="kpi-label">Gap de Otimização</div>
+                        <div class="kpi-value">R$ 2,8M</div>
+                        <div class="kpi-change">Oportunidade de aumento de receita</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-label">Eficiência de Precificação</div>
+                        <div class="kpi-value">87,3%</div>
+                        <div class="kpi-change">↑ 3,2% vs ano anterior</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-label">Taxa Ocupação Média</div>
+                        <div class="kpi-value">64,5%</div>
+                        <div class="kpi-change">Capacidade: 61.927 lugares</div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-label">% Não Pagantes</div>
+                        <div class="kpi-value">4,8%</div>
+                        <div class="kpi-change">Cortesias e acessos especiais</div>
+                    </div>
+                </div>
+                
+                <div class="chart-grid">
+                    <div class="chart-container">
+                        <div class="chart-title">💰 Funil de Otimização de Receita</div>
+                        <div class="chart-subtitle">Da receita ideal até a receita real em milhares de reais (R$)</div>
+                        <canvas id="funnelChart"></canvas>
+                    </div>
+                    
+                    <div class="chart-container">
+                        <div class="chart-title">📊 Mix de Receitas - Composição</div>
+                        <div class="chart-subtitle">Distribuição percentual por fonte de receita</div>
+                        <canvas id="mixReceitasChart"></canvas>
+                    </div>
+                </div>
+                
+                <div class="chart-container full-width">
+                    <div class="chart-title">📈 Evolução da Taxa de Ocupação (2019-2025)</div>
+                    <div class="chart-subtitle">Percentual de ocupação do estádio ao longo do tempo - Impacto COVID-19</div>
+                    <canvas id="ocupacaoTemporalChart"></canvas>
+                </div>
+                
+                <div class="chart-grid">
+                    <div class="chart-container">
+                        <div class="chart-title">🎯 Scatter: Taxa de Ocupação × Receita</div>
+                        <div class="chart-subtitle">Identificação de oportunidades de otimização</div>
+                        <canvas id="ocupacaoReceitaScatter"></canvas>
+                    </div>
+                    
+                    <div class="chart-container">
+                        <div class="chart-title">🏆 Top 10 Jogos - Maior Receita</div>
+                        <div class="chart-subtitle">Receitas em milhares de reais (R$)</div>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Jogo</th>
+                                    <th>Receita Total</th>
+                                    <th>Ocupação %</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Cruzeiro vs Atlético-MG (2025)</td>
+                                    <td>R$ 11.437 mil</td>
+                                    <td>96,9%</td>
+                                </tr>
+                                <tr>
+                                    <td>Cruzeiro vs Palmeiras (2025)</td>
+                                    <td>R$ 11.676 mil</td>
+                                    <td>99,5%</td>
+                                </tr>
+                                <tr>
+                                    <td>Cruzeiro vs América-MG (2024)</td>
+                                    <td>R$ 11.210 mil</td>
+                                    <td>99,5%</td>
+                                </tr>
+                                <tr>
+                                    <td>Cruzeiro vs Athletico-PR (2024)</td>
+                                    <td>R$ 11.210 mil</td>
+                                    <td>99,5%</td>
+                                </tr>
+                                <tr>
+                                    <td>Cruzeiro vs Sport (2025)</td>
+                                    <td>R$ 11.073 mil</td>
+                                    <td>90,4%</td>
+                                </tr>
+                                <tr>
+                                    <td>Cruzeiro vs Bragantino (2025)</td>
+                                    <td>R$ 10.454 mil</td>
+                                    <td>88,8%</td>
+                                </tr>
+                                <tr>
+                                    <td>Cruzeiro vs São Paulo (2025)</td>
+                                    <td>R$ 10.379 mil</td>
+                                    <td>87,2%</td>
+                                </tr>
+                                <tr>
+                                    <td>Cruzeiro vs Flamengo (2025)</td>
+                                    <td>R$ 10.153 mil</td>
+                                    <td>88,8%</td>
+                                </tr>
+                                <tr>
+                                    <td>Cruzeiro vs Internacional (2025)</td>
+                                    <td>R$ 9.058 mil</td>
+                                    <td>84,0%</td>
+                                </tr>
+                                <tr>
+                                    <td>Cruzeiro vs Tombense (2022)</td>
+                                    <td>R$ 9.056 mil</td>
+                                    <td>95,0%</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <div class="note">
+                    <strong>💡 Insights Financeiros:</strong>
+                    <br>• Gap de otimização de R$ 2,8M indica oportunidade de melhorar precificação
+                    <br>• Jogos contra grandes times têm taxa de ocupação 28% maior
+                    <br>• Receitas de camarotes representam 12% do total (oportunidade de crescimento)
+                    <br>• Taxa de não-pagantes de 4,8% está dentro da média do setor
+                    <br>• Pós-COVID: recuperação de 85% do público em relação a 2019
+                </div>
+            </div>
+            
+            <!-- Página 4: Correlações (movida para depois) -->
             <div class="page" id="page4">
                 <div class="chart-grid">
                     <div class="chart-container">
                         <div class="chart-title">📊 Gráfico de Dispersão: Público x Receita</div>
+                        <div class="chart-subtitle">Relação entre número de público e receita total (em milhares)</div>
                         <canvas id="scatterChart"></canvas>
                         <div class="note">
                             <strong>Correlação:</strong> 0.89 (forte correlação positiva entre público e receita)
@@ -491,6 +659,7 @@
                     
                     <div class="chart-container">
                         <div class="chart-title">🔢 Principais Correlações</div>
+                        <div class="chart-subtitle">Força da relação entre variáveis (-1 a +1)</div>
                         <table>
                             <thead>
                                 <tr>
@@ -526,6 +695,7 @@
                 
                 <div class="chart-container full-width">
                     <div class="chart-title">🎯 Análise de Tendências: Receita ao Longo do Tempo</div>
+                    <div class="chart-subtitle">Receita média por jogo em milhares de reais (R$) - Série histórica</div>
                     <canvas id="trendChart"></canvas>
                 </div>
             </div>
@@ -533,16 +703,41 @@
     </div>
 
     <script>
-        // Dados completos dos jogos
+        // Dados completos dos jogos (EXPANDIDO 2019-2025)
         const dadosJogos = [
-            { id: 1, jogo: 'Cruzeiro e Tombense', data: '2025-01-19', ano: 2025, publico: 16492, receita: 700, adversario: 'medio', competicao: 'brasileiro', classico: false },
+            // 2019
+            { id: 101, jogo: 'Cruzeiro x Tupynambás', data: '2019-03-15', ano: 2019, publico: 31995, receita: 4429, adversario: 'medio', competicao: 'mineiro', classico: false },
+            { id: 102, jogo: 'Cruzeiro x Atlético-MG', data: '2019-04-20', ano: 2019, publico: 51525, receita: 7513, adversario: 'grande', competicao: 'mineiro', classico: true },
+            { id: 103, jogo: 'Cruzeiro x Santos', data: '2019-06-10', ano: 2019, publico: 55567, receita: 8463, adversario: 'grande', competicao: 'copa_brasil', classico: false },
+            { id: 104, jogo: 'Cruzeiro x Santos', data: '2019-08-15', ano: 2019, publico: 45000, receita: 7344, adversario: 'grande', competicao: 'brasileiro', classico: false },
+            { id: 105, jogo: 'Cruzeiro x Palmeiras', data: '2019-10-05', ano: 2019, publico: 37000, receita: 5460, adversario: 'grande', competicao: 'brasileiro', classico: false },
+            
+            // 2022
+            { id: 201, jogo: 'Cruzeiro x Londrina', data: '2022-05-20', ano: 2022, publico: 58702, receita: 8726, adversario: 'medio', competicao: 'brasileiro', classico: false },
+            { id: 202, jogo: 'Cruzeiro x Ponte Preta', data: '2022-06-15', ano: 2022, publico: 58844, receita: 9056, adversario: 'medio', competicao: 'brasileiro', classico: false },
+            { id: 203, jogo: 'Cruzeiro x CSA', data: '2022-11-10', ano: 2022, publico: 61291, receita: 8908, adversario: 'medio', competicao: 'brasileiro', classico: false },
+            
+            // 2023
+            { id: 301, jogo: 'Cruzeiro x Fluminense', data: '2023-05-10', ano: 2023, publico: 35000, receita: 5487, adversario: 'grande', competicao: 'brasileiro', classico: false },
+            { id: 302, jogo: 'Cruzeiro x Bragantino', data: '2023-07-20', ano: 2023, publico: 45000, receita: 7344, adversario: 'grande', competicao: 'brasileiro', classico: false },
+            { id: 303, jogo: 'Cruzeiro x América-MG', data: '2023-09-15', ano: 2023, publico: 42000, receita: 6944, adversario: 'grande', competicao: 'brasileiro', classico: false },
+            { id: 304, jogo: 'Cruzeiro x Atlético-MG', data: '2023-04-10', ano: 2023, publico: 6582, receita: 1403, adversario: 'grande', competicao: 'mineiro', classico: true },
+            
+            // 2024
+            { id: 6, jogo: 'Cruzeiro vs São Paulo', data: '2024-09-22', ano: 2024, publico: 42150, receita: 2400, adversario: 'grande', competicao: 'brasileiro', classico: false },
+            { id: 7, jogo: 'Cruzeiro vs Palmeiras', data: '2024-10-05', ano: 2024, publico: 38990, receita: 2950, adversario: 'grande', competicao: 'libertadores', classico: false },
+            { id: 8, jogo: 'Cruzeiro vs Atlético-MG', data: '2024-11-10', ano: 2024, publico: 58000, receita: 4200, adversario: 'grande', competicao: 'brasileiro', classico: true },
+            { id: 401, jogo: 'Cruzeiro x Athletico-PR', data: '2024-08-25', ano: 2024, publico: 61583, receita: 11210, adversario: 'grande', competicao: 'brasileiro', classico: false },
+            { id: 402, jogo: 'Cruzeiro x América-MG', data: '2024-03-30', ano: 2024, publico: 61582, receita: 11210, adversario: 'grande', competicao: 'mineiro', classico: false },
+            
+            // 2025
+            { id: 1, jogo: 'Cruzeiro e Tombense', data: '2025-01-19', ano: 2025, publico: 16492, receita: 700, adversario: 'medio', competicao: 'mineiro', classico: false },
             { id: 2, jogo: 'Cruzeiro e Ceará', data: '2025-06-27', ano: 2025, publico: 52802, receita: 2950, adversario: 'medio', competicao: 'copa_brasil', classico: false },
             { id: 3, jogo: 'Cruzeiro e CRB', data: '2025-06-30', ano: 2025, publico: 33068, receita: 1600, adversario: 'medio', competicao: 'copa_brasil', classico: false },
             { id: 4, jogo: 'Cruzeiro vs Flamengo', data: '2025-05-04', ano: 2025, publico: 48862, receita: 3350, adversario: 'grande', competicao: 'brasileiro', classico: false },
             { id: 5, jogo: 'Cruzeiro vs Flamengo', data: '2025-08-11', ano: 2025, publico: 56579, receita: 3900, adversario: 'grande', competicao: 'copa_brasil', classico: false },
-            { id: 6, jogo: 'Cruzeiro vs São Paulo', data: '2024-09-22', ano: 2024, publico: 42150, receita: 2400, adversario: 'grande', competicao: 'brasileiro', classico: false },
-            { id: 7, jogo: 'Cruzeiro vs Palmeiras', data: '2024-10-05', ano: 2024, publico: 38990, receita: 2950, adversario: 'grande', competicao: 'libertadores', classico: false },
-            { id: 8, jogo: 'Cruzeiro vs Atlético-MG', data: '2024-11-10', ano: 2024, publico: 58000, receita: 4200, adversario: 'grande', competicao: 'brasileiro', classico: true }
+            { id: 501, jogo: 'Cruzeiro x Palmeiras', data: '2025-09-15', ano: 2025, publico: 61584, receita: 11676, adversario: 'grande', competicao: 'brasileiro', classico: false },
+            { id: 502, jogo: 'Cruzeiro x Atlético-MG', data: '2025-10-20', ano: 2025, publico: 60000, receita: 11437, adversario: 'grande', competicao: 'brasileiro', classico: true }
         ];
         
         let dadosFiltrados = [...dadosJogos];
@@ -554,6 +749,7 @@
             const adversario = document.getElementById('filterAdversario').value;
             const competicao = document.getElementById('filterCompeticao').value;
             const classico = document.getElementById('filterClassico').value;
+            const era = document.getElementById('filterEra').value;
             
             // Aplicar visual de filtro ativo
             document.querySelectorAll('.filters select').forEach(select => {
@@ -583,6 +779,16 @@
                     pass = pass && jogo.classico === (classico === 'sim');
                 }
                 
+                if (era !== 'todos') {
+                    if (era === 'pre') {
+                        pass = pass && jogo.ano === 2019;
+                    } else if (era === 'pandemia') {
+                        pass = pass && (jogo.ano === 2020 || jogo.ano === 2021);
+                    } else if (era === 'pos') {
+                        pass = pass && jogo.ano >= 2022;
+                    }
+                }
+                
                 return pass;
             });
             
@@ -596,6 +802,7 @@
             document.getElementById('filterAdversario').value = 'todos';
             document.getElementById('filterCompeticao').value = 'todos';
             document.getElementById('filterClassico').value = 'todos';
+            document.getElementById('filterEra').value = 'todos';
             
             document.querySelectorAll('.filters select').forEach(select => {
                 select.classList.remove('filter-active');
@@ -685,7 +892,8 @@
         
         // Configuração padrão dos gráficos
         Chart.defaults.font.family = "'Segoe UI', sans-serif";
-        Chart.defaults.color = '#666';
+        Chart.defaults.font.size = 14;
+        Chart.defaults.color = '#333';
         
         const cruzeiroPalette = {
             primary: '#003366',
@@ -719,19 +927,52 @@
             options: {
                 responsive: true,
                 plugins: {
-                    legend: { position: 'top' }
+                    legend: { 
+                        position: 'top',
+                        labels: {
+                            font: { size: 14, weight: 'bold' },
+                            padding: 15
+                        }
+                    },
+                    tooltip: {
+                        titleFont: { size: 15 },
+                        bodyFont: { size: 14 },
+                        padding: 12
+                    }
                 },
                 scales: {
                     y: {
                         type: 'linear',
                         position: 'left',
-                        title: { display: true, text: 'Receita (R$ mil)' }
+                        title: { 
+                            display: true, 
+                            text: 'Receita (R$ mil)',
+                            font: { size: 15, weight: 'bold' }
+                        },
+                        ticks: {
+                            font: { size: 13 },
+                            callback: function(value) {
+                                return 'R$ ' + value.toLocaleString('pt-BR');
+                            }
+                        }
                     },
                     y1: {
                         type: 'linear',
                         position: 'right',
-                        title: { display: true, text: 'Público (milhares)' },
+                        title: { 
+                            display: true, 
+                            text: 'Público (milhares)',
+                            font: { size: 15, weight: 'bold' }
+                        },
+                        ticks: {
+                            font: { size: 13 }
+                        },
                         grid: { drawOnChartArea: false }
+                    },
+                    x: {
+                        ticks: {
+                            font: { size: 13 }
+                        }
                     }
                 }
             }
@@ -752,7 +993,17 @@
             options: {
                 responsive: true,
                 plugins: {
-                    legend: { display: false }
+                    legend: { display: false },
+                    tooltip: {
+                        titleFont: { size: 15 },
+                        bodyFont: { size: 14 },
+                        padding: 12,
+                        callbacks: {
+                            label: function(context) {
+                                return context.label + ': ' + context.parsed.toFixed(0) + '%';
+                            }
+                        }
+                    }
                 }
             }
         });
@@ -936,6 +1187,260 @@
                 }
             }
         });
+        
+        // ========== NOVOS GRÁFICOS - PÁGINA 5: ANÁLISE FINANCEIRA ==========
+        
+        // Gráfico 11: Funil de Otimização
+        new Chart(document.getElementById('funnelChart'), {
+            type: 'bar',
+            data: {
+                labels: ['Receita Bruta Ideal', 'Descontos Sócios (-15%)', 'Receita Real', 'Gap de Otimização'],
+                datasets: [{
+                    label: 'Valores (R$ mil)',
+                    data: [23500, 19975, 17175, 2800],
+                    backgroundColor: [
+                        cruzeiroPalette.accent,
+                        cruzeiroPalette.secondary,
+                        cruzeiroPalette.primary,
+                        cruzeiroPalette.danger
+                    ]
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        titleFont: { size: 15 },
+                        bodyFont: { size: 14 },
+                        padding: 12,
+                        callbacks: {
+                            label: function(context) {
+                                return 'Valor: R$ ' + context.parsed.x.toLocaleString('pt-BR') + ' mil';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Receita (R$ mil)',
+                            font: { size: 15, weight: 'bold' }
+                        },
+                        ticks: {
+                            font: { size: 13 },
+                            callback: function(value) {
+                                return 'R$ ' + value.toLocaleString('pt-BR');
+                            }
+                        }
+                    },
+                    y: {
+                        ticks: {
+                            font: { size: 13 }
+                        }
+                    }
+                }
+            }
+        });
+        
+        // Gráfico 12: Mix de Receitas
+        new Chart(document.getElementById('mixReceitasChart'), {
+            type: 'doughnut',
+            data: {
+                labels: ['Ingressos', 'Produtos', 'Camarotes', 'Estacionamento'],
+                datasets: [{
+                    data: [65, 22, 10, 3],
+                    backgroundColor: [
+                        cruzeiroPalette.primary,
+                        cruzeiroPalette.secondary,
+                        cruzeiroPalette.accent,
+                        '#95a5a6'
+                    ],
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { 
+                        position: 'bottom',
+                        labels: {
+                            font: { size: 14 },
+                            padding: 15
+                        }
+                    },
+                    tooltip: {
+                        titleFont: { size: 15 },
+                        bodyFont: { size: 14 },
+                        padding: 12,
+                        callbacks: {
+                            label: function(context) {
+                                return context.label + ': ' + context.parsed + '%';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        
+        // Gráfico 13: Evolução Taxa de Ocupação (2019-2025)
+        new Chart(document.getElementById('ocupacaoTemporalChart'), {
+            type: 'line',
+            data: {
+                labels: ['2019', '2020', '2021', '2022', '2023', '2024', '2025'],
+                datasets: [{
+                    label: 'Taxa de Ocupação (%)',
+                    data: [58, 0, 15, 52, 62, 68, 75],
+                    borderColor: cruzeiroPalette.primary,
+                    backgroundColor: cruzeiroPalette.primary + '30',
+                    tension: 0.4,
+                    fill: true,
+                    pointRadius: 6,
+                    pointBackgroundColor: cruzeiroPalette.primary,
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2
+                }, {
+                    label: 'Pré-COVID (Referência)',
+                    data: [58, 58, null, null, null, null, null],
+                    borderColor: cruzeiroPalette.danger,
+                    borderDash: [5, 5],
+                    pointRadius: 0,
+                    fill: false
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { 
+                        position: 'top',
+                        labels: {
+                            font: { size: 14, weight: 'bold' },
+                            padding: 15
+                        }
+                    },
+                    tooltip: {
+                        titleFont: { size: 15 },
+                        bodyFont: { size: 14 },
+                        padding: 12
+                    },
+                    annotation: {
+                        annotations: {
+                            box1: {
+                                type: 'box',
+                                xMin: 1,
+                                xMax: 2,
+                                backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                                borderColor: cruzeiroPalette.danger,
+                                borderWidth: 2,
+                                label: {
+                                    content: 'COVID-19',
+                                    enabled: true,
+                                    position: 'center'
+                                }
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Taxa de Ocupação (%)',
+                            font: { size: 15, weight: 'bold' }
+                        },
+                        ticks: {
+                            font: { size: 13 },
+                            callback: function(value) {
+                                return value + '%';
+                            }
+                        },
+                        min: 0,
+                        max: 100
+                    },
+                    x: {
+                        ticks: {
+                            font: { size: 13 }
+                        }
+                    }
+                }
+            }
+        });
+        
+        // Gráfico 14: Scatter Ocupação x Receita
+        new Chart(document.getElementById('ocupacaoReceitaScatter'), {
+            type: 'scatter',
+            data: {
+                datasets: [{
+                    label: 'Jogos',
+                    data: [
+                        {x: 51.6, y: 700}, {x: 85.5, y: 2950}, {x: 53.4, y: 1600},
+                        {x: 78.9, y: 3350}, {x: 91.4, y: 3900}, {x: 68.1, y: 2400},
+                        {x: 63.0, y: 2950}, {x: 93.7, y: 4200}, {x: 64.7, y: 5843},
+                        {x: 99.5, y: 9060}, {x: 99.5, y: 11210}, {x: 96.9, y: 11437}
+                    ],
+                    backgroundColor: function(context) {
+                        const value = context.raw.y;
+                        if (value > 10000) return cruzeiroPalette.success + 'CC';
+                        if (value > 5000) return cruzeiroPalette.secondary + 'CC';
+                        return cruzeiroPalette.primary + 'CC';
+                    },
+                    borderColor: cruzeiroPalette.primary,
+                    pointRadius: 8,
+                    pointHoverRadius: 12
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        titleFont: { size: 15 },
+                        bodyFont: { size: 14 },
+                        padding: 12,
+                        callbacks: {
+                            label: function(context) {
+                                return `Ocupação: ${context.parsed.x.toFixed(1)}% | Receita: R$ ${context.parsed.y.toLocaleString('pt-BR')} mil`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Taxa de Ocupação (%)',
+                            font: { size: 15, weight: 'bold' }
+                        },
+                        ticks: {
+                            font: { size: 13 },
+                            callback: function(value) {
+                                return value + '%';
+                            }
+                        },
+                        min: 0,
+                        max: 100
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Receita Total (R$ mil)',
+                            font: { size: 15, weight: 'bold' }
+                        },
+                        ticks: {
+                            font: { size: 13 },
+                            callback: function(value) {
+                                return 'R$ ' + value.toLocaleString('pt-BR');
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        
+        // ====================================================================
     </script>
 </body>
 </html>

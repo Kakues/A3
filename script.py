@@ -7,34 +7,59 @@ import glob
 warnings.filterwarnings('ignore')
 
 class CruzeiroPowerBIExporter:
-    """Sistema de análise e exportação de dados do Cruzeiro para Power BI"""
+    """
+    Sistema de análise e exportação de dados do Cruzeiro para Power BI
+    VERSÃO 2.0 - Com dados financeiros detalhados 2019-2025
+    """
     
-    def __init__(self):
+    def __init__(self, caminho_dados='data/data.csv'):
+        """
+        Inicializa o exportador
+        
+        Args:
+            caminho_dados: Caminho para a pasta com os CSVs (padrão: 'data/data.csv')
+        """
         self.dfs = {}
         self.correlations = {}
+        self.caminho_dados = caminho_dados
         self._verificar_arquivos()
-        
+    
     def _verificar_arquivos(self):
         """Verifica e lista todos os arquivos CSV disponíveis"""
         print("\n" + "="*60)
         print("VERIFICANDO ARQUIVOS CSV")
         print("="*60)
         
-        # Tentar encontrar CSVs na pasta atual
-        csv_files = glob.glob("*.csv")
+        # Tentar vários caminhos possíveis
+        caminhos_possiveis = [
+            self.caminho_dados,
+            'data/data.csv',
+            'data.csv',
+            'data\\data.csv',
+            '.'
+        ]
         
-        # Se não encontrar, procurar na subpasta data.csv
-        if len(csv_files) <= 1:  # Só tem data.csv ou nenhum
-            print("  Procurando em subpastas...")
-            csv_files = glob.glob("data.csv/*.csv")
-            if not csv_files:
-                csv_files = glob.glob("data.csv/**/*.csv", recursive=True)
+        csv_files = []
+        caminho_encontrado = None
+        
+        for caminho in caminhos_possiveis:
+            if os.path.exists(caminho):
+                arquivos = glob.glob(os.path.join(caminho, "*.csv"))
+                if arquivos:
+                    csv_files = arquivos
+                    caminho_encontrado = caminho
+                    break
         
         if not csv_files:
             print("❌ ERRO: Nenhum arquivo CSV encontrado!")
             print(f"   Pasta atual: {os.getcwd()}")
-            print("\n💡 SOLUÇÃO: Verifique se os arquivos estão na pasta correta.")
+            print(f"   Caminhos tentados: {caminhos_possiveis}")
+            print("\n💡 SOLUÇÃO:")
+            print("   1. Verifique se os arquivos CSV estão em 'data/data.csv/'")
+            print("   2. Ou execute: exporter = CruzeiroPowerBIExporter(caminho_dados='SEU_CAMINHO')")
             raise FileNotFoundError("Nenhum arquivo CSV encontrado")
+        
+        print(f"✓ Pasta encontrada: {os.path.abspath(caminho_encontrado)}")
         
         print(f"✓ Encontrados {len(csv_files)} arquivos CSV:\n")
         for i, file in enumerate(csv_files, 1):
@@ -53,8 +78,14 @@ class CruzeiroPowerBIExporter:
             nome_arquivo = os.path.basename(file).lower()
             nome_limpo = nome_arquivo.replace('%', '').replace(' ', '_').replace('ç', 'c').replace('ã', 'a').replace('õ', 'o').replace('é', 'e')
             
-            # Mapear cada tipo de arquivo
-            if 'setor_fatos' in nome_limpo or 'setor_fato' in nome_limpo:
+            # ========== NOVO: Detectar arquivo de receitas detalhadas ==========
+            if 'receitas_detalhadas' in nome_limpo or 'receita_detalhada' in nome_limpo:
+                self.arquivos['receitas_detalhadas'] = file
+                print(f"  ✓ receitas_detalhadas (NOVO): {os.path.basename(file)}")
+            # ===================================================================
+            
+            # Mapear cada tipo de arquivo (código existente)
+            elif 'setor_fatos' in nome_limpo or 'setor_fato' in nome_limpo:
                 self.arquivos['setor_fatos'] = file
                 print(f"  ✓ setor_fatos: {os.path.basename(file)}")
                 
@@ -122,18 +153,59 @@ class CruzeiroPowerBIExporter:
             print(f"⚠ {len(csv_files) - len(self.arquivos)} arquivo(s) não foram mapeados (podem ser duplicados ou não utilizados)")
         
         print()
-        
+    
     def carregar_dados(self):
         """Carrega todos os CSVs e realiza limpeza inicial"""
         
         print("CARREGANDO DADOS...")
         print("="*60 + "\n")
         
-        # 1. Setor Fatos
+        # ========== NOVO: Carregar receitas detalhadas ==========
+        if 'receitas_detalhadas' in self.arquivos:
+            try:
+                self.dfs['receitas_detalhadas'] = pd.read_csv(self.arquivos['receitas_detalhadas'])
+                
+                # Limpeza e transformações
+                df = self.dfs['receitas_detalhadas']
+                
+                # Converter ano para inteiro
+                df['ano'] = df['ano'].astype(int)
+                
+                # Criar taxa de ocupação decimal
+                df['taxa_ocupacao_decimal'] = df['taxa_ocupacao_percent'] / 100
+                
+                # Calcular gap de otimização
+                df['gap_otimizacao'] = df['receita_bruta_ideal_ingressos'] - df['receita_ingresso']
+                
+                # Calcular percentuais de receita
+                df['perc_receita_produtos'] = (df['receita_produtos_internos'] / df['total_arrecadado'] * 100).round(2)
+                df['perc_receita_camarotes'] = (df['receita_camarotes'] / df['total_arrecadado'] * 100).round(2)
+                df['perc_receita_estacionamento'] = (df['receita_estacionamento'] / df['total_arrecadado'] * 100).round(2)
+                
+                # Classificar tipo de adversário
+                df['tipo_adversario'] = df['times_que_jogaram'].apply(self._classificar_adversario)
+                df['eh_classico'] = df['times_que_jogaram'].str.contains('Atlético-MG', case=False, na=False)
+                
+                # Identificar era (pré/pós pandemia)
+                df['era'] = df['ano'].apply(lambda x: 'Pré-COVID' if x < 2020 else ('Pandemia' if x <= 2021 else 'Pós-COVID'))
+                
+                print(f"  ✓ {os.path.basename(self.arquivos['receitas_detalhadas'])} carregado - {len(df)} jogos")
+                print(f"     Período: {df['ano'].min()} a {df['ano'].max()}")
+                print(f"     Competições: {df['competicao'].nunique()} diferentes")
+                
+            except Exception as e:
+                print(f"  ⚠ Erro ao carregar receitas_detalhadas: {e}")
+                self.dfs['receitas_detalhadas'] = pd.DataFrame()
+        else:
+            print("  ⚠ Arquivo receitas_detalhadas não encontrado")
+            self.dfs['receitas_detalhadas'] = pd.DataFrame()
+        # ========================================================
+        
+        # 1. Setor Fatos (código existente)
         if 'setor_fatos' in self.arquivos:
             self.dfs['setor_fatos'] = pd.read_csv(self.arquivos['setor_fatos'], skipinitialspace=True)
             self.dfs['setor_fatos'].columns = self.dfs['setor_fatos'].columns.str.strip()
-            print(f"  ✓ {self.arquivos['setor_fatos']} carregado")
+            print(f"  ✓ {os.path.basename(self.arquivos['setor_fatos'])} carregado")
         else:
             print("  ⚠ Arquivo setor_fatos não encontrado, usando dados parciais")
             self.dfs['setor_fatos'] = pd.DataFrame()
@@ -143,10 +215,7 @@ class CruzeiroPowerBIExporter:
             self.dfs['jogo_fatos'] = pd.read_csv(self.arquivos['jogo_fatos'])
             self.dfs['jogo_fatos']['data'] = pd.to_datetime(self.dfs['jogo_fatos']['data'], format='%d/%m/%Y', errors='coerce')
             
-            # Remove espaços em branco do início e fim de todos os nomes de colunas
-            self.dfs['jogo_fatos'].columns = self.dfs['jogo_fatos'].columns.str.strip()
-
-            # Extrair público total (lidar com texto "pagantes")
+            # Extrair público total
             if 'publico total' in self.dfs['jogo_fatos'].columns:
                 self.dfs['jogo_fatos']['publico_total'] = self.dfs['jogo_fatos']['publico total'].astype(str).str.extract('(\d+)', expand=False).astype(float)
             elif 'publico_total' in self.dfs['jogo_fatos'].columns:
@@ -158,49 +227,45 @@ class CruzeiroPowerBIExporter:
             elif 'jogo_id' in self.dfs['jogo_fatos'].columns:
                 self.dfs['jogo_fatos']['jogo_id'] = self.dfs['jogo_fatos']['jogo_id'].str.strip()
             
-            print(f"  ✓ {self.arquivos['jogo_fatos']} carregado")
+            print(f"  ✓ {os.path.basename(self.arquivos['jogo_fatos'])} carregado")
         else:
             raise FileNotFoundError("Arquivo jogo_fatos.csv é obrigatório!")
         
-        # 3. Lotação por Jogo (Produtos)
+        # 3-14. Outros arquivos (código existente mantido)
         if 'lotacao' in self.arquivos:
             self.dfs['lotacao'] = pd.read_csv(self.arquivos['lotacao'])
             self.dfs['lotacao']['jogo_id'] = self.dfs['lotacao']['jogo_id'].str.strip()
-            print(f"  ✓ {self.arquivos['lotacao']} carregado")
+            print(f"  ✓ {os.path.basename(self.arquivos['lotacao'])} carregado")
         else:
             print("  ⚠ Arquivo lotacao não encontrado")
             self.dfs['lotacao'] = pd.DataFrame()
         
-        # 4. Perfil Demográfico
         if 'demografico' in self.arquivos:
             self.dfs['demografico'] = pd.read_csv(self.arquivos['demografico'])
             self.dfs['demografico']['Jogo_ID'] = self.dfs['demografico']['Jogo_ID'].str.strip()
-            print(f"  ✓ {self.arquivos['demografico']} carregado")
+            print(f"  ✓ {os.path.basename(self.arquivos['demografico'])} carregado")
         else:
             print("  ⚠ Arquivo demográfico não encontrado")
             self.dfs['demografico'] = pd.DataFrame()
         
-        # 5. Receita Fatos
         if 'receita' in self.arquivos:
             self.dfs['receita'] = pd.read_csv(self.arquivos['receita'])
             self.dfs['receita']['data'] = pd.to_datetime(self.dfs['receita']['data'], format='%d/%m/%Y', errors='coerce')
             self.dfs['receita']['jogo_id'] = self.dfs['receita']['jogo_id'].str.strip()
-            print(f"  ✓ {self.arquivos['receita']} carregado")
+            print(f"  ✓ {os.path.basename(self.arquivos['receita'])} carregado")
         else:
             print("  ⚠ Arquivo receita_fatos não encontrado")
             self.dfs['receita'] = pd.DataFrame()
         
-        # 6. Receitas Históricas (2014-2022)
         if 'receitas_historicas' in self.arquivos:
             self.dfs['receitas_historicas'] = pd.read_csv(self.arquivos['receitas_historicas'])
             self.dfs['receitas_historicas']['data'] = pd.to_datetime(self.dfs['receitas_historicas']['data'], errors='coerce')
             self.dfs['receitas_historicas']['Ano'] = self.dfs['receitas_historicas']['Ano'].astype(int)
-            print(f"  ✓ {self.arquivos['receitas_historicas']} carregado")
+            print(f"  ✓ {os.path.basename(self.arquivos['receitas_historicas'])} carregado")
         else:
             print("  ⚠ Arquivo receitas_historicas não encontrado")
             self.dfs['receitas_historicas'] = pd.DataFrame()
         
-        # 7. Sócio Torcedor
         if 'socio_torcedor' in self.arquivos:
             self.dfs['socio_torcedor'] = pd.read_csv(self.arquivos['socio_torcedor'])
             print(f"  ✓ {os.path.basename(self.arquivos['socio_torcedor'])} carregado")
@@ -208,81 +273,188 @@ class CruzeiroPowerBIExporter:
             print("  ⚠ Arquivo socio_torcedor não encontrado")
             self.dfs['socio_torcedor'] = pd.DataFrame()
         
-        # 8. Ticket Médio Estimativa
-        if 'ticket_medio_estimativa' in self.arquivos:
-            try:
-                self.dfs['ticket_medio_estimativa'] = pd.read_csv(self.arquivos['ticket_medio_estimativa'])
-                print(f"  ✓ {os.path.basename(self.arquivos['ticket_medio_estimativa'])} carregado")
-            except Exception as e:
-                print(f"  ⚠ Erro ao carregar ticket_medio_estimativa: {e}")
+        # Arquivos adicionais com tratamento de erro
+        for key in ['ticket_medio_estimativa', 'ticket_medio_torcedor', 'vendas_canal', 
+                    'vendas_competicao', 'precos_produtos', 'setor_por_jogo']:
+            if key in self.arquivos:
+                try:
+                    self.dfs[key] = pd.read_csv(self.arquivos[key])
+                    print(f"  ✓ {os.path.basename(self.arquivos[key])} carregado")
+                except Exception as e:
+                    print(f"  ⚠ Erro ao carregar {key}: {e}")
         
-        # 9. Ticket Médio Torcedor
-        if 'ticket_medio_torcedor' in self.arquivos:
-            try:
-                self.dfs['ticket_medio_torcedor'] = pd.read_csv(self.arquivos['ticket_medio_torcedor'])
-                print(f"  ✓ {os.path.basename(self.arquivos['ticket_medio_torcedor'])} carregado")
-            except Exception as e:
-                print(f"  ⚠ Erro ao carregar ticket_medio_torcedor: {e}")
-        
-        # 10. Vendas por Canal
-        if 'vendas_canal' in self.arquivos:
-            try:
-                self.dfs['vendas_canal'] = pd.read_csv(self.arquivos['vendas_canal'])
-                print(f"  ✓ {os.path.basename(self.arquivos['vendas_canal'])} carregado")
-            except Exception as e:
-                print(f"  ⚠ Erro ao carregar vendas_canal: {e}")
-        
-        # 11. Vendas por Competição
-        if 'vendas_competicao' in self.arquivos:
-            try:
-                self.dfs['vendas_competicao'] = pd.read_csv(self.arquivos['vendas_competicao'])
-                print(f"  ✓ {os.path.basename(self.arquivos['vendas_competicao'])} carregado")
-            except Exception as e:
-                print(f"  ⚠ Erro ao carregar vendas_competicao: {e}")
-        
-        # 12. Preços Produtos
-        if 'precos_produtos' in self.arquivos:
-            try:
-                self.dfs['precos_produtos'] = pd.read_csv(self.arquivos['precos_produtos'])
-                print(f"  ✓ {os.path.basename(self.arquivos['precos_produtos'])} carregado")
-            except Exception as e:
-                print(f"  ⚠ Erro ao carregar precos_produtos: {e}")
-        
-        # 13. Público Cruzeiro (com tratamento especial para erros de formatação)
+        # Público Cruzeiro com tratamento especial
         if 'publico_cruzeiro' in self.arquivos:
             try:
-                # Tentar com on_bad_lines='skip' para ignorar linhas problemáticas
                 self.dfs['publico_cruzeiro'] = pd.read_csv(
                     self.arquivos['publico_cruzeiro'], 
                     on_bad_lines='skip',
                     engine='python'
                 )
-                print(f"  ✓ {os.path.basename(self.arquivos['publico_cruzeiro'])} carregado (algumas linhas podem ter sido ignoradas)")
+                print(f"  ✓ {os.path.basename(self.arquivos['publico_cruzeiro'])} carregado")
             except Exception as e:
                 print(f"  ⚠ Erro ao carregar publico_cruzeiro: {e}")
-                print(f"     Tentando método alternativo...")
-                try:
-                    # Método alternativo: ler todas as colunas
-                    self.dfs['publico_cruzeiro'] = pd.read_csv(
-                        self.arquivos['publico_cruzeiro'],
-                        sep=',',
-                        quoting=1,  # QUOTE_ALL
-                        on_bad_lines='warn'
-                    )
-                    print(f"  ✓ {os.path.basename(self.arquivos['publico_cruzeiro'])} carregado com método alternativo")
-                except Exception as e2:
-                    print(f"  ✗ Não foi possível carregar publico_cruzeiro: {e2}")
-        
-        # 14. Setor por Jogo (adicional)
-        if 'setor_por_jogo' in self.arquivos:
-            try:
-                self.dfs['setor_por_jogo'] = pd.read_csv(self.arquivos['setor_por_jogo'])
-                print(f"  ✓ {os.path.basename(self.arquivos['setor_por_jogo'])} carregado")
-            except Exception as e:
-                print(f"  ⚠ Erro ao carregar setor_por_jogo: {e}")
         
         print(f"\n✓ Processo de carga concluído! Total: {len(self.dfs)} datasets carregados\n")
+    
+    def _classificar_adversario(self, times):
+        """Classifica o adversário por importância"""
+        grandes = ['Flamengo', 'Palmeiras', 'São Paulo', 'Corinthians', 'Atlético-MG', 
+                   'Grêmio', 'Internacional', 'Santos', 'Vasco']
+        if any(grande in times for grande in grandes):
+            return 'Grande'
+        return 'Médio/Pequeno'
+    
+    # ========== NOVO: Funções para análise de receitas detalhadas ==========
+    
+    def criar_analise_precificacao(self):
+        """Cria análise detalhada de precificação de ingressos"""
         
+        if self.dfs['receitas_detalhadas'].empty:
+            print("⚠ Dados de receitas detalhadas não disponíveis")
+            return
+        
+        print("Criando análise de precificação...")
+        
+        df = self.dfs['receitas_detalhadas'].copy()
+        
+        # Remover jogos da pandemia (público zero)
+        df = df[df['publico_presente'] > 0]
+        
+        # Análise por competição e ano
+        precificacao = df.groupby(['ano', 'competicao']).agg({
+            'preco_medio_inteira': 'mean',
+            'preco_medio_meia': 'mean',
+            'ticket_medio_real_ingresso': 'mean',
+            'ticket_medio_ideal_ingressos': 'mean',
+            'fator_desconto_socios_percent': 'mean',
+            'gap_otimizacao': 'sum',
+            'publico_presente': 'sum',
+            'total_arrecadado': 'sum'
+        }).reset_index()
+        
+        # Calcular eficiência de precificação
+        precificacao['eficiencia_precificacao'] = (
+            precificacao['ticket_medio_real_ingresso'] / 
+            precificacao['ticket_medio_ideal_ingressos'] * 100
+        ).round(2)
+        
+        precificacao.columns = ['ano', 'competicao', 'preco_medio_inteira', 'preco_medio_meia',
+                                'ticket_medio_real', 'ticket_medio_ideal', 'desconto_medio_socios',
+                                'gap_otimizacao_total', 'publico_total', 'receita_total',
+                                'eficiencia_precificacao_percent']
+        
+        self.dfs['analise_precificacao'] = precificacao
+        print(f"✓ Análise de Precificação criada com {len(precificacao)} registros!\n")
+    
+    def criar_mix_receitas(self):
+        """Cria análise do mix de receitas (ingressos, produtos, camarotes, estacionamento)"""
+        
+        if self.dfs['receitas_detalhadas'].empty:
+            print("⚠ Dados de receitas detalhadas não disponíveis")
+            return
+        
+        print("Criando análise de mix de receitas...")
+        
+        df = self.dfs['receitas_detalhadas'].copy()
+        df = df[df['publico_presente'] > 0]
+        
+        # Análise agregada por ano e competição
+        mix = df.groupby(['ano', 'competicao']).agg({
+            'receita_ingresso': 'sum',
+            'receita_produtos_internos': 'sum',
+            'receita_camarotes': 'sum',
+            'receita_estacionamento': 'sum',
+            'total_arrecadado': 'sum',
+            'publico_presente': 'sum'
+        }).reset_index()
+        
+        # Calcular percentuais
+        mix['perc_ingresso'] = (mix['receita_ingresso'] / mix['total_arrecadado'] * 100).round(2)
+        mix['perc_produtos'] = (mix['receita_produtos_internos'] / mix['total_arrecadado'] * 100).round(2)
+        mix['perc_camarotes'] = (mix['receita_camarotes'] / mix['total_arrecadado'] * 100).round(2)
+        mix['perc_estacionamento'] = (mix['receita_estacionamento'] / mix['total_arrecadado'] * 100).round(2)
+        
+        # Receita per capita por categoria
+        mix['receita_per_capita_ingresso'] = (mix['receita_ingresso'] / mix['publico_presente']).round(2)
+        mix['receita_per_capita_produtos'] = (mix['receita_produtos_internos'] / mix['publico_presente']).round(2)
+        
+        self.dfs['mix_receitas'] = mix
+        print(f"✓ Mix de Receitas criado com {len(mix)} registros!\n")
+    
+    def criar_analise_ocupacao(self):
+        """Cria análise de taxa de ocupação do estádio"""
+        
+        if self.dfs['receitas_detalhadas'].empty:
+            print("⚠ Dados de receitas detalhadas não disponíveis")
+            return
+        
+        print("Criando análise de ocupação...")
+        
+        df = self.dfs['receitas_detalhadas'].copy()
+        df = df[df['publico_presente'] > 0]
+        
+        # Análise por ano, competição e tipo de adversário
+        ocupacao = df.groupby(['ano', 'competicao', 'tipo_adversario']).agg({
+            'taxa_ocupacao_percent': ['mean', 'min', 'max'],
+            'publico_presente': ['sum', 'mean'],
+            'publico_pagante': ['sum', 'mean'],
+            'total_arrecadado': 'sum'
+        }).reset_index()
+        
+        # Renomear colunas
+        ocupacao.columns = ['_'.join(col).strip('_') for col in ocupacao.columns.values]
+        ocupacao.columns = ['ano', 'competicao', 'tipo_adversario',
+                           'taxa_ocupacao_media', 'taxa_ocupacao_min', 'taxa_ocupacao_max',
+                           'publico_total', 'publico_medio',
+                           'pagantes_total', 'pagantes_medio',
+                           'receita_total']
+        
+        # Calcular % não pagantes
+        ocupacao['perc_nao_pagantes'] = (
+            (ocupacao['publico_total'] - ocupacao['pagantes_total']) / 
+            ocupacao['publico_total'] * 100
+        ).round(2)
+        
+        self.dfs['analise_ocupacao'] = ocupacao
+        print(f"✓ Análise de Ocupação criada com {len(ocupacao)} registros!\n")
+    
+    def criar_serie_temporal_completa(self):
+        """Cria série temporal completa 2019-2025"""
+        
+        if self.dfs['receitas_detalhadas'].empty:
+            print("⚠ Dados de receitas detalhadas não disponíveis")
+            return
+        
+        print("Criando série temporal completa...")
+        
+        df = self.dfs['receitas_detalhadas'].copy()
+        df = df[df['publico_presente'] > 0]
+        
+        # Agregar por ano e mês
+        temporal = df.groupby(['ano', 'competicao']).agg({
+            'publico_presente': ['sum', 'mean'],
+            'total_arrecadado': ['sum', 'mean'],
+            'taxa_ocupacao_percent': 'mean',
+            'ticket_medio_real_ingresso': 'mean',
+            'gap_otimizacao': 'sum',
+            'times_que_jogaram': 'count'
+        }).reset_index()
+        
+        temporal.columns = ['ano', 'competicao', 'publico_total', 'publico_medio',
+                           'receita_total', 'receita_media', 'taxa_ocupacao_media',
+                           'ticket_medio', 'gap_otimizacao_total', 'quantidade_jogos']
+        
+        # Identificar tendências
+        temporal['era'] = temporal['ano'].apply(
+            lambda x: 'Pré-COVID' if x < 2020 else ('Pandemia' if x <= 2021 else 'Pós-COVID')
+        )
+        
+        self.dfs['serie_temporal_completa'] = temporal
+        print(f"✓ Série Temporal Completa criada com {len(temporal)} registros!\n")
+    
+    # ========================================================================
+    
     def criar_fato_consolidado(self):
         """Cria tabela fato principal consolidando todas as informações"""
         
@@ -291,7 +463,6 @@ class CruzeiroPowerBIExporter:
         # Verificar colunas disponíveis
         print(f"\nColunas disponíveis em jogo_fatos: {list(self.dfs['jogo_fatos'].columns)}")
         
-        # Mapear nomes de colunas (lidar com variações)
         df = self.dfs['jogo_fatos'].copy()
         
         # Padronizar nomes de colunas
@@ -313,7 +484,7 @@ class CruzeiroPowerBIExporter:
         
         df.rename(columns=col_map, inplace=True)
         
-        # Garantir que temos as colunas essenciais
+        # Garantir colunas essenciais
         required_cols = ['jogo_id', 'times_jogados', 'data']
         missing_cols = [col for col in required_cols if col not in df.columns]
         
@@ -333,30 +504,33 @@ class CruzeiroPowerBIExporter:
         
         fato = df[cols_to_use].copy()
         
-        # Merge com Receitas se disponível
+        # Merge com Receitas
         if not self.dfs['receita'].empty and 'jogo_id' in self.dfs['receita'].columns:
             receita_cols = ['jogo_id', 'receita_ingresso', 'receita_produtos_internos', 
                            'total_arrecadado', 'classificacao_para_competicao']
-            
-            # Verificar quais colunas existem
             receita_cols_available = [col for col in receita_cols if col in self.dfs['receita'].columns]
             
-            if len(receita_cols_available) > 1:  # Pelo menos jogo_id + 1 coluna
-                fato = fato.merge(
-                    self.dfs['receita'][receita_cols_available],
-                    on='jogo_id', how='left'
-                )
+            if len(receita_cols_available) > 1:
+                fato = fato.merge(self.dfs['receita'][receita_cols_available], on='jogo_id', how='left')
                 
-
-                # Calcular ticket médio se possível
+                # CORREÇÃO: Garantir que as colunas são numéricas antes de calcular
                 if 'receita_ingresso' in fato.columns and 'publico_total' in fato.columns:
-                    fato['ticket_medio_ingresso'] = (fato['receita_ingresso'] / fato['publico_total']).round(2)
+                    # Converter para numérico, substituindo erros por NaN
+                    fato['receita_ingresso'] = pd.to_numeric(fato['receita_ingresso'], errors='coerce')
+                    fato['publico_total'] = pd.to_numeric(fato['publico_total'], errors='coerce')
+                    
+                    # Calcular ticket médio apenas onde ambos são válidos
+                    fato['ticket_medio_ingresso'] = fato.apply(
+                        lambda row: round(row['receita_ingresso'] / row['publico_total'], 2) 
+                        if pd.notna(row['receita_ingresso']) and pd.notna(row['publico_total']) and row['publico_total'] > 0 
+                        else None, 
+                        axis=1
+                    )
         
-        # Adicionar informações de setores se disponível
+        # Adicionar informações de setores
         if not self.dfs['setor_fatos'].empty and 'jogo_id' in self.dfs['setor_fatos'].columns:
             setor_df = self.dfs['setor_fatos'].copy()
             
-            # Padronizar nome da coluna jogo_id
             for col in setor_df.columns:
                 if 'jogo' in col.lower() and 'id' in col.lower():
                     setor_df.rename(columns={col: 'jogo_id'}, inplace=True)
@@ -369,10 +543,27 @@ class CruzeiroPowerBIExporter:
         
         # Adicionar KPIs calculados
         if 'total_arrecadado' in fato.columns and 'publico_total' in fato.columns:
-            fato['receita_per_capita'] = (fato['total_arrecadado'] / fato['publico_total']).round(2)
+            # CORREÇÃO: Converter para numérico e tratar divisões
+            fato['total_arrecadado'] = pd.to_numeric(fato['total_arrecadado'], errors='coerce')
+            fato['publico_total'] = pd.to_numeric(fato['publico_total'], errors='coerce')
+            
+            fato['receita_per_capita'] = fato.apply(
+                lambda row: round(row['total_arrecadado'] / row['publico_total'], 2)
+                if pd.notna(row['total_arrecadado']) and pd.notna(row['publico_total']) and row['publico_total'] > 0
+                else None,
+                axis=1
+            )
         
         if 'receita_produtos_internos' in fato.columns and 'total_arrecadado' in fato.columns:
-            fato['percentual_receita_produtos'] = (fato['receita_produtos_internos'] / fato['total_arrecadado'] * 100).round(2)
+            # CORREÇÃO: Converter e tratar divisões
+            fato['receita_produtos_internos'] = pd.to_numeric(fato['receita_produtos_internos'], errors='coerce')
+            
+            fato['percentual_receita_produtos'] = fato.apply(
+                lambda row: round(row['receita_produtos_internos'] / row['total_arrecadado'] * 100, 2)
+                if pd.notna(row['receita_produtos_internos']) and pd.notna(row['total_arrecadado']) and row['total_arrecadado'] > 0
+                else None,
+                axis=1
+            )
         
         if 'data' in fato.columns:
             fato['mes'] = fato['data'].dt.month
@@ -387,13 +578,6 @@ class CruzeiroPowerBIExporter:
         
         self.dfs['fato_consolidado'] = fato
         print(f"✓ Tabela Fato Consolidada criada com {len(fato)} registros e {len(fato.columns)} colunas!\n")
-        
-    def _classificar_adversario(self, times):
-        """Classifica o adversário por importância"""
-        grandes = ['Flamengo', 'Palmeiras', 'São Paulo', 'Corinthians', 'Atlético-MG']
-        if any(grande in times for grande in grandes):
-            return 'Grande'
-        return 'Médio/Pequeno'
     
     def criar_dimensao_produtos(self):
         """Cria dimensão de produtos com análise detalhada"""
@@ -445,7 +629,7 @@ class CruzeiroPowerBIExporter:
         if agg_dict:
             dim_produtos = produtos.groupby(group_cols).agg(agg_dict).reset_index()
             
-            # Adicionar participação percentual se possível
+            # Adicionar participação percentual
             if 'Receita_Total_Produto' in dim_produtos.columns:
                 total_por_jogo = dim_produtos.groupby('jogo_id')['Receita_Total_Produto'].sum()
                 dim_produtos = dim_produtos.merge(
@@ -463,7 +647,7 @@ class CruzeiroPowerBIExporter:
         else:
             print("⚠ Colunas de agregação não encontradas")
             self.dfs['dim_produtos'] = pd.DataFrame()
-        
+    
     def criar_dimensao_demografica(self):
         """Cria dimensões demográficas agregadas"""
         
@@ -476,7 +660,7 @@ class CruzeiroPowerBIExporter:
         
         demo = self.dfs['demografico'].copy()
         
-        # Verificar se temos as colunas necessárias
+        # Verificar colunas necessárias
         required_cols = ['Jogo_ID', 'Tipo_Metrica', 'Categoria', 'Valor_Percentual']
         missing = [col for col in required_cols if col not in demo.columns]
         
@@ -521,7 +705,7 @@ class CruzeiroPowerBIExporter:
         except Exception as e:
             print(f"⚠ Erro ao criar dimensão demográfica: {e}")
             self.dfs['dim_demografica'] = pd.DataFrame()
-        
+    
     def criar_analise_temporal(self):
         """Cria análise de séries temporais"""
         
@@ -551,8 +735,8 @@ class CruzeiroPowerBIExporter:
         
         self.dfs['analise_temporal'] = analise_temporal
         self.dfs['metricas_anuais'] = metricas_anuais
-        print("✓ Análise Temporal criada!")
-        
+        print("✓ Análise Temporal criada!\n")
+    
     def calcular_correlacoes(self):
         """Calcula correlações entre variáveis principais"""
         
@@ -562,54 +746,74 @@ class CruzeiroPowerBIExporter:
         # Selecionar colunas numéricas
         colunas_numericas = [
             'publico_total', 'receita_ingresso', 'receita_produtos_internos',
-            'total_arrecadado', 'ticket_medio_ingresso', 'receita_per_capita',
-            'Vermelho', 'amarelo', 'roxo', 'laranja'
+            'total_arrecadado', 'ticket_medio_ingresso', 'receita_per_capita'
         ]
         
-        correlacao = fato[colunas_numericas].corr().round(3)
+        # Adicionar colunas de setores se existirem
+        for col in ['Vermelho', 'amarelo', 'roxo', 'laranja']:
+            if col in fato.columns:
+                colunas_numericas.append(col)
+        
+        # Filtrar apenas colunas que existem
+        colunas_disponiveis = [col for col in colunas_numericas if col in fato.columns]
+        
+        if len(colunas_disponiveis) < 2:
+            print("⚠ Colunas insuficientes para calcular correlações")
+            return
+        
+        correlacao = fato[colunas_disponiveis].corr().round(3)
         
         self.correlations['matriz_correlacao'] = correlacao
         
         # Insights principais
         insights = []
-        insights.append(f"Correlação Público x Receita Total: {correlacao.loc['publico_total', 'total_arrecadado']:.3f}")
-        insights.append(f"Correlação Ticket Médio x Receita: {correlacao.loc['ticket_medio_ingresso', 'receita_ingresso']:.3f}")
-        insights.append(f"Correlação Setor Amarelo x Público: {correlacao.loc['amarelo', 'publico_total']:.3f}")
+        if 'publico_total' in correlacao.columns and 'total_arrecadado' in correlacao.columns:
+            insights.append(f"Correlação Público x Receita Total: {correlacao.loc['publico_total', 'total_arrecadado']:.3f}")
+        if 'ticket_medio_ingresso' in correlacao.columns and 'receita_ingresso' in correlacao.columns:
+            insights.append(f"Correlação Ticket Médio x Receita: {correlacao.loc['ticket_medio_ingresso', 'receita_ingresso']:.3f}")
         
         self.correlations['insights'] = insights
-        print("✓ Correlações calculadas!")
-        
+        print("✓ Correlações calculadas!\n")
+    
     def criar_kpis_dashboard(self):
         """Cria tabela de KPIs para dashboard"""
         
         fato = self.dfs['fato_consolidado']
         
-        kpis = pd.DataFrame({
-            'Métrica': [
-                'Público Médio',
-                'Receita Média Total',
-                'Ticket Médio Ingresso',
-                'Receita Per Capita',
-                'Percentual Receita Produtos',
-                'Maior Público',
-                'Menor Público',
-                'Total de Jogos'
-            ],
-            'Valor': [
-                f"{fato['publico_total'].mean():,.0f}",
-                f"R$ {fato['total_arrecadado'].mean():,.2f}",
-                f"R$ {fato['ticket_medio_ingresso'].mean():.2f}",
-                f"R$ {fato['receita_per_capita'].mean():.2f}",
-                f"{fato['percentual_receita_produtos'].mean():.1f}%",
+        kpis_data = {
+            'Métrica': [],
+            'Valor': []
+        }
+        
+        if 'publico_total' in fato.columns:
+            kpis_data['Métrica'].append('Público Médio')
+            kpis_data['Valor'].append(f"{fato['publico_total'].mean():,.0f}")
+        
+        if 'total_arrecadado' in fato.columns:
+            kpis_data['Métrica'].append('Receita Média Total')
+            kpis_data['Valor'].append(f"R$ {fato['total_arrecadado'].mean():,.2f}")
+        
+        if 'ticket_medio_ingresso' in fato.columns:
+            kpis_data['Métrica'].append('Ticket Médio Ingresso')
+            kpis_data['Valor'].append(f"R$ {fato['ticket_medio_ingresso'].mean():.2f}")
+        
+        if 'receita_per_capita' in fato.columns:
+            kpis_data['Métrica'].append('Receita Per Capita')
+            kpis_data['Valor'].append(f"R$ {fato['receita_per_capita'].mean():.2f}")
+        
+        if 'publico_total' in fato.columns:
+            kpis_data['Métrica'].extend(['Maior Público', 'Menor Público', 'Total de Jogos'])
+            kpis_data['Valor'].extend([
                 f"{fato['publico_total'].max():,.0f}",
                 f"{fato['publico_total'].min():,.0f}",
                 f"{len(fato)}"
-            ]
-        })
+            ])
+        
+        kpis = pd.DataFrame(kpis_data)
         
         self.dfs['kpis_dashboard'] = kpis
-        print("✓ KPIs para Dashboard criados!")
-        
+        print("✓ KPIs para Dashboard criados!\n")
+    
     def exportar_para_powerbi(self, pasta_saida='exports_powerbi'):
         """Exporta todos os datasets para Power BI"""
         
@@ -623,17 +827,24 @@ class CruzeiroPowerBIExporter:
             'DIM_Demografica': 'dim_demografica',
             'FATO_Temporal': 'analise_temporal',
             'AGG_Metricas_Anuais': 'metricas_anuais',
-            'KPI_Dashboard': 'kpis_dashboard'
+            'KPI_Dashboard': 'kpis_dashboard',
+            # ========== NOVO: Tabelas de receitas detalhadas ==========
+            'FATO_Receitas_Detalhadas': 'receitas_detalhadas',
+            'ANALISE_Precificacao': 'analise_precificacao',
+            'ANALISE_Mix_Receitas': 'mix_receitas',
+            'ANALISE_Ocupacao': 'analise_ocupacao',
+            'SERIE_Temporal_Completa': 'serie_temporal_completa'
+            # ==========================================================
         }
         
         arquivos_criados = []
         
         for nome_arquivo, nome_df in tabelas.items():
-            if nome_df in self.dfs:
+            if nome_df in self.dfs and not self.dfs[nome_df].empty:
                 caminho = f"{pasta_saida}/{nome_arquivo}.csv"
                 self.dfs[nome_df].to_csv(caminho, index=False, encoding='utf-8-sig')
                 arquivos_criados.append(nome_arquivo)
-                print(f"✓ Exportado: {nome_arquivo}.csv")
+                print(f"✓ Exportado: {nome_arquivo}.csv ({len(self.dfs[nome_df])} registros)")
         
         # Exportar matriz de correlação
         if 'matriz_correlacao' in self.correlations:
@@ -650,82 +861,243 @@ class CruzeiroPowerBIExporter:
         print(f"{'='*60}")
         print(f"Total de arquivos: {len(arquivos_criados)}")
         print(f"Localização: ./{pasta_saida}/")
-        
+    
     def _criar_documentacao(self, pasta, arquivos):
         """Cria documentação dos arquivos exportados"""
         
         doc = f"""
-DOCUMENTAÇÃO - EXPORTS POWER BI
+DOCUMENTAÇÃO - EXPORTS POWER BI - VERSÃO 2.0
 {'='*70}
 Data da Exportação: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}
+
+NOVIDADES DA VERSÃO 2.0:
+{'='*70}
+✅ Adicionadas 5 novas tabelas com dados financeiros detalhados (2019-2025)
+✅ 130 jogos analisados (vs 8 anteriores)
+✅ Análise de precificação com gap de otimização
+✅ Mix de receitas detalhado (ingressos, produtos, camarotes, estacionamento)
+✅ Taxa de ocupação do estádio por competição
+✅ Série temporal completa incluindo pandemia COVID-19
 
 ARQUIVOS GERADOS:
 {'='*70}
 
+** TABELAS ORIGINAIS **
+
 1. FATO_Jogos.csv
-   - Tabela fato principal com informações consolidadas de cada jogo
+   - Tabela fato principal com informações consolidadas
    - Chave: jogo_id
-   - Relacionamentos: Todas as outras tabelas
-   - Métricas: Público, Receitas, Setores, KPIs calculados
+   - Métricas: Público, Receitas, Setores, KPIs
 
 2. DIM_Produtos.csv
-   - Dimensão de produtos vendidos por jogo
+   - Dimensão de produtos vendidos
    - Chave: jogo_id + Produto_Típico
-   - Métricas: Receitas por produto, participação percentual
 
 3. DIM_Demografica.csv
-   - Perfil demográfico da torcida (Gênero, Idade, Região)
+   - Perfil demográfico da torcida
    - Chave: Jogo_ID
-   - Dados percentuais por categoria
 
 4. FATO_Temporal.csv
-   - Série temporal de receitas (2014-2025)
-   - Análise evolutiva com dados históricos e recentes
+   - Série temporal de receitas
+   - Dados: 2014-2025
 
 5. AGG_Metricas_Anuais.csv
-   - Agregações anuais (soma, média, desvio padrão)
-   - Visão macro da evolução ano a ano
+   - Agregações anuais
 
 6. KPI_Dashboard.csv
-   - KPIs principais para cards do dashboard
-   - Métricas resumidas e formatadas
+   - KPIs principais formatados
 
 7. CORR_Matriz.csv
-   - Matriz de correlação entre variáveis numéricas
-   - Análise de relacionamentos estatísticos
+   - Matriz de correlação
+
+** NOVAS TABELAS (VERSÃO 2.0) **
+
+8. FATO_Receitas_Detalhadas.csv ⭐ NOVO
+   - 130 jogos de 2019 a 2025
+   - 26 colunas com dados financeiros detalhados
+   - Inclui: Inteiras/Meias, Preços, Camarotes, Estacionamento
+   - Taxa de ocupação, Público mandante/visitante
+   - Gap de otimização de receitas
+
+9. ANALISE_Precificacao.csv ⭐ NOVO
+   - Análise de preços de ingressos por competição/ano
+   - Ticket médio real vs ideal
+   - Fator de desconto sócios
+   - Eficiência de precificação
+   - Gap de otimização total
+
+10. ANALISE_Mix_Receitas.csv ⭐ NOVO
+    - Composição de receitas por fonte
+    - % Ingressos, Produtos, Camarotes, Estacionamento
+    - Receita per capita por categoria
+    - Análise por competição e ano
+
+11. ANALISE_Ocupacao.csv ⭐ NOVO
+    - Taxa de ocupação do estádio
+    - Público presente vs pagante
+    - % não-pagantes
+    - Análise por tipo de adversário
+
+12. SERIE_Temporal_Completa.csv ⭐ NOVO
+    - Série histórica completa 2019-2025
+    - Identificação de eras (Pré-COVID, Pandemia, Pós-COVID)
+    - Tendências de público e receita
+    - Quantidade de jogos por período
 
 {'='*70}
-SUGESTÕES DE RELACIONAMENTOS NO POWER BI:
+RELACIONAMENTOS NO POWER BI:
 {'='*70}
 
-FATO_Jogos [jogo_id] --> DIM_Produtos [jogo_id]
-FATO_Jogos [jogo_id] --> DIM_Demografica [Jogo_ID]
-FATO_Jogos [data] --> FATO_Temporal [data]
+** Relacionamentos Originais **
+FATO_Jogos[jogo_id] --> DIM_Produtos[jogo_id]
+FATO_Jogos[jogo_id] --> DIM_Demografica[Jogo_ID]
+FATO_Jogos[data] --> FATO_Temporal[data]
+
+** Novos Relacionamentos **
+FATO_Receitas_Detalhadas[ano] --> ANALISE_Precificacao[ano]
+FATO_Receitas_Detalhadas[ano] --> ANALISE_Mix_Receitas[ano]
+FATO_Receitas_Detalhadas[ano] --> ANALISE_Ocupacao[ano]
+FATO_Receitas_Detalhadas[ano] --> SERIE_Temporal_Completa[ano]
+
+** Relacionamento Cruzado **
+FATO_Jogos[ano] --> FATO_Receitas_Detalhadas[ano] (para análises combinadas)
 
 {'='*70}
-MEDIDAS DAX SUGERIDAS:
+NOVAS MEDIDAS DAX SUGERIDAS:
 {'='*70}
 
-Receita Total = SUM(FATO_Jogos[total_arrecadado])
-Público Total = SUM(FATO_Jogos[publico_total])
-Ticket Médio = AVERAGE(FATO_Jogos[ticket_medio_ingresso])
-Taxa de Ocupação = [Público Total] / 61927
-Crescimento YoY = ([Receita Total] - CALCULATE([Receita Total], SAMEPERIODLASTYEAR(FATO_Temporal[data]))) / CALCULATE([Receita Total], SAMEPERIODLASTYEAR(FATO_Temporal[data]))
+// Análise de Precificação
+Gap Otimização Total = 
+SUM(FATO_Receitas_Detalhadas[gap_otimizacao])
+
+Eficiência Precificação = 
+DIVIDE(
+    SUM(FATO_Receitas_Detalhadas[receita_ingresso]),
+    SUM(FATO_Receitas_Detalhadas[receita_bruta_ideal_ingressos]),
+    0
+) * 100
+
+Desconto Médio Sócios = 
+AVERAGE(FATO_Receitas_Detalhadas[fator_desconto_socios_percent])
+
+// Mix de Receitas
+% Receita Camarotes = 
+DIVIDE(
+    SUM(FATO_Receitas_Detalhadas[receita_camarotes]),
+    SUM(FATO_Receitas_Detalhadas[total_arrecadado]),
+    0
+) * 100
+
+% Receita Estacionamento = 
+DIVIDE(
+    SUM(FATO_Receitas_Detalhadas[receita_estacionamento]),
+    SUM(FATO_Receitas_Detalhadas[total_arrecadado]),
+    0
+) * 100
+
+Receita Per Capita Produtos = 
+DIVIDE(
+    SUM(FATO_Receitas_Detalhadas[receita_produtos_internos]),
+    SUM(FATO_Receitas_Detalhadas[publico_presente]),
+    0
+)
+
+// Ocupação
+Taxa Ocupação Média = 
+AVERAGE(FATO_Receitas_Detalhadas[taxa_ocupacao_percent])
+
+% Não Pagantes = 
+DIVIDE(
+    SUM(FATO_Receitas_Detalhadas[publico_presente]) - 
+    SUM(FATO_Receitas_Detalhadas[publico_pagante]),
+    SUM(FATO_Receitas_Detalhadas[publico_presente]),
+    0
+) * 100
+
+Público Médio Clássicos = 
+CALCULATE(
+    AVERAGE(FATO_Receitas_Detalhadas[publico_presente]),
+    FATO_Receitas_Detalhadas[eh_classico] = TRUE
+)
+
+// Análise Temporal
+Crescimento Público YoY = 
+VAR PublicoAnoAtual = SUM(FATO_Receitas_Detalhadas[publico_presente])
+VAR PublicoAnoAnterior = 
+    CALCULATE(
+        SUM(FATO_Receitas_Detalhadas[publico_presente]),
+        SAMEPERIODLASTYEAR(FATO_Receitas_Detalhadas[ano])
+    )
+RETURN
+DIVIDE(PublicoAnoAtual - PublicoAnoAnterior, PublicoAnoAnterior, 0) * 100
+
+Impacto COVID = 
+CALCULATE(
+    SUM(FATO_Receitas_Detalhadas[publico_presente]),
+    FATO_Receitas_Detalhadas[era] = "Pandemia"
+)
+
+{'='*70}
+NOVAS VISUALIZAÇÕES SUGERIDAS:
+{'='*70}
+
+** Página 5: Análise Financeira Avançada **
+
+1. Funil de Otimização
+   - Receita Bruta Ideal → Descontos → Receita Real
+   - Visual: Gráfico de Funil
+
+2. Mix de Receitas (Waterfall Chart)
+   - Ingressos + Produtos + Camarotes + Estacionamento = Total
+   - Visual: Gráfico de Cascata
+
+3. Taxa de Ocupação - Linha do Tempo
+   - 2019-2025 mostrando impacto COVID
+   - Visual: Gráfico de Linha com marcadores
+
+4. Scatter: Ocupação x Receita
+   - Identificar oportunidades de otimização
+   - Visual: Gráfico de Dispersão
+
+5. Heatmap: Público por Competição
+   - Linhas: Competições
+   - Colunas: Anos
+   - Cores: Intensidade de público
+
+6. Comparativo Pré/Pós COVID
+   - Cards comparativos
+   - Visual: Cards + Gráficos de Barras
+
+{'='*70}
+DICAS DE USO:
+{'='*70}
+
+1. Use filtros de Era (Pré-COVID, Pandemia, Pós-COVID) para análises temporais
+
+2. Combine tipo_adversario com taxa_ocupacao para estratégias de pricing
+
+3. Analise gap_otimizacao por competição para identificar oportunidades
+
+4. Compare % não-pagantes entre competições para avaliar políticas de cortesia
+
+5. Use eficiência_precificacao para benchmarking entre períodos
+
+6. Analise mix de receitas para diversificação de fontes
 
 {'='*70}
 """
         
-        caminho_doc = f"{pasta}/README_POWERBI.txt"
+        caminho_doc = f"{pasta}/README_POWERBI_V2.txt"
         with open(caminho_doc, 'w', encoding='utf-8') as f:
             f.write(doc)
         
-        print(f"✓ Documentação criada: README_POWERBI.txt")
-        
+        print(f"✓ Documentação criada: README_POWERBI_V2.txt")
+    
     def executar_pipeline_completo(self):
         """Executa todo o pipeline de processamento e exportação"""
         
         print("\n" + "="*60)
-        print("INICIANDO PROCESSAMENTO DE DADOS - CRUZEIRO EC")
+        print("INICIANDO PROCESSAMENTO DE DADOS - CRUZEIRO EC v2.0")
         print("="*60 + "\n")
         
         self.carregar_dados()
@@ -733,6 +1105,15 @@ Crescimento YoY = ([Receita Total] - CALCULATE([Receita Total], SAMEPERIODLASTYE
         self.criar_dimensao_produtos()
         self.criar_dimensao_demografica()
         self.criar_analise_temporal()
+        
+        # ========== NOVO: Análises de receitas detalhadas ==========
+        if not self.dfs['receitas_detalhadas'].empty:
+            self.criar_analise_precificacao()
+            self.criar_mix_receitas()
+            self.criar_analise_ocupacao()
+            self.criar_serie_temporal_completa()
+        # ===========================================================
+        
         self.calcular_correlacoes()
         self.criar_kpis_dashboard()
         
@@ -743,15 +1124,35 @@ Crescimento YoY = ([Receita Total] - CALCULATE([Receita Total], SAMEPERIODLASTYE
         self.exportar_para_powerbi()
         
         # Mostrar insights de correlação
-        print("\n" + "="*60)
-        print("INSIGHTS DE CORRELAÇÃO")
-        print("="*60)
-        for insight in self.correlations['insights']:
-            print(f"  • {insight}")
-        print()
+        if self.correlations.get('insights'):
+            print("\n" + "="*60)
+            print("INSIGHTS DE CORRELAÇÃO")
+            print("="*60)
+            for insight in self.correlations['insights']:
+                print(f"  • {insight}")
+            print()
+        
+        # ========== NOVO: Mostrar resumo das novas análises ==========
+        if not self.dfs['receitas_detalhadas'].empty:
+            print("\n" + "="*60)
+            print("RESUMO DAS NOVAS ANÁLISES")
+            print("="*60)
+            
+            df = self.dfs['receitas_detalhadas']
+            df_validos = df[df['publico_presente'] > 0]
+            
+            print(f"  • Total de jogos analisados: {len(df_validos)}")
+            print(f"  • Período: {df_validos['ano'].min()} a {df_validos['ano'].max()}")
+            print(f"  • Público total acumulado: {df_validos['publico_presente'].sum():,.0f}")
+            print(f"  • Receita total acumulada: R$ {df_validos['total_arrecadado'].sum():,.2f}")
+            print(f"  • Taxa de ocupação média: {df_validos['taxa_ocupacao_percent'].mean():.1f}%")
+            print(f"  • Gap de otimização total: R$ {df_validos['gap_otimizacao'].sum():,.2f}")
+            print(f"  • Competições analisadas: {df_validos['competicao'].nunique()}")
+            print()
+        # =============================================================
 
 
 # EXECUÇÃO
 if __name__ == "__main__":
-    exporter = CruzeiroPowerBIExporter()
+    exporter = CruzeiroPowerBIExporter(caminho_dados='data/data.csv')
     exporter.executar_pipeline_completo()
