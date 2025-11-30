@@ -1,0 +1,10 @@
+adversario_id;nome_adversario;competicao;nivel_confronto;classico_local
+1;Atlético-MG;Brasileiro;Classico;True
+2;Palmeiras;Brasileiro;Grande;False
+3;Flamengo;Copa do Brasil;Grande;False
+4;São Paulo;Libertadores;Grande;False
+5;Athletico-PR;Brasileiro;Medio;False
+6;Grêmio;Brasileiro;Medio;False
+7;Ceará;Copa do Brasil;Medio;False
+8;Tombense;Mineiro;Pequeno;False
+9;CRB;Copa do Brasil;Pequeno;False

@@ -1,0 +1,8 @@
+setor_id;nome_setor;capacidade_mil;tipo_acesso
+1;Amarelo Inferior;12,0;Portão 1-3
+2;Vermelho Inferior;18,0;Portão 4-6
+3;Roxo Superior;15,0;Portão 7-9
+4;Laranja Superior;10,0;Portão 10-12
+5;Roxo Inferior;5,0;Portão 13
+6;Camarotes;1,5;Portão 14
+7;Visitante;2,5;Portão 15
